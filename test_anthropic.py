@@ -33,19 +33,16 @@ def test_anthropic_connection():
         # Try multiple initialization approaches
         initialization_attempts = [
             {
-                "name": "Custom HTTP client with no proxies",
-                "fn": lambda: anthropic.Anthropic(
-                    api_key=api_key,
-                    http_client=httpx.Client(proxies=None)
-                )
-            },
-            {
-                "name": "Simple initialization",
+                "name": "Plain initialization",
                 "fn": lambda: anthropic.Anthropic(api_key=api_key)
             },
             {
                 "name": "Legacy Client class",
                 "fn": lambda: anthropic.Client(api_key=api_key)
+            },
+            {
+                "name": "Using kwargs dict",
+                "fn": lambda: anthropic.Anthropic(**{"api_key": api_key})
             }
         ]
         

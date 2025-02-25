@@ -34,29 +34,25 @@ try:
     
     # Try different client initialization methods based on potentially available SDK versions
     try:
-        # First attempt - with httpx and no proxies
-        logger.info("First attempt - with httpx and no proxies")
-        # Create a custom HTTP client with no proxies
-        http_client = httpx.Client(proxies=None)
-        client = anthropic.Anthropic(
-            api_key=api_key,
-            http_client=http_client,
-        )
-        logger.info("Anthropic client initialized successfully using custom HTTP client")
+        # First attempt - completely plain with no special parameters
+        logger.info("First attempt - plain initialization")
+        client = anthropic.Anthropic(api_key=api_key)
+        logger.info("Anthropic client initialized successfully using simple initialization")
     except Exception as e1:
         logger.warning(f"First attempt failed: {str(e1)}")
         try:
-            # Second attempt - simplest form
-            logger.info("Second attempt - simplest form")
-            client = anthropic.Anthropic(api_key=api_key)
-            logger.info("Anthropic client initialized successfully using simple initialization")
+            # Second attempt - for older versions
+            logger.info("Second attempt - legacy Client class")
+            client = anthropic.Client(api_key=api_key)
+            logger.info("Anthropic client initialized successfully using legacy Client class")
         except Exception as e2:
             logger.warning(f"Second attempt failed: {str(e2)}")
             try:
-                # Third attempt - for older versions
-                logger.info("Third attempt - for older versions")
-                client = anthropic.Client(api_key=api_key)
-                logger.info("Anthropic client initialized successfully using legacy Client class")
+                # Third attempt - using a direct dict for kwargs
+                logger.info("Third attempt - using kwargs dict")
+                kwargs = {"api_key": api_key}
+                client = anthropic.Anthropic(**kwargs)
+                logger.info("Anthropic client initialized successfully using kwargs")
             except Exception as e3:
                 logger.error(f"All client initialization attempts failed: {str(e3)}")
                 raise Exception(f"Failed to initialize Anthropic client after multiple attempts: {str(e3)}")
