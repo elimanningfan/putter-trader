@@ -130,7 +130,7 @@ def health_check():
 
 if __name__ == '__main__':
     # Use environment variables with defaults
-    port = int(os.environ.get('PORT', 8080))
+    port = int(os.environ.get('PORT', 8081))
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     # Log startup information
