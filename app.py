@@ -1,14 +1,34 @@
 import os
 from flask import Flask, render_template, request, jsonify
-import anthropic
-from dotenv import load_dotenv
 import logging
 import sys
 from flask_cors import CORS
+from dotenv import load_dotenv
+
+'''
+Railway Deployment Configuration:
+---------------------------------
+For best results with Railway deployment, add the following environment variables in the Railway dashboard:
+- HTTP_PROXY=""
+- HTTPS_PROXY=""
+- NO_PROXY="*"
+
+These settings will help prevent proxy-related errors when connecting to the Anthropic API.
+'''
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Clear proxy environment variables - Railway specific fix
+# This needs to happen BEFORE importing anthropic
+logger.info("Clearing proxy environment variables to avoid Railway proxy issues")
+os.environ['HTTP_PROXY'] = ''
+os.environ['HTTPS_PROXY'] = ''
+os.environ['NO_PROXY'] = '*'
+
+# Now it's safe to import Anthropic
+import anthropic
 
 # Load environment variables
 load_dotenv()
@@ -37,25 +57,124 @@ try:
         import anthropic
         logger.info("Imported Anthropic version: " + getattr(anthropic, "__version__", "unknown"))
         
-        # MONKEY PATCH the Anthropic client initialization to filter out unwanted parameters
-        # This is a direct approach to deal with middleware injecting parameters
-        original_init = anthropic.Anthropic.__init__
+        # Applying monkey patching to handle both older and newer SDK versions
+        # In newer versions, there might be a separate Client class
         
-        def patched_init(self, *args, **kwargs):
-            # Explicitly filter out problematic parameters before passing to original init
-            if 'proxies' in kwargs:
-                logger.info("Removing 'proxies' parameter from Anthropic client initialization")
-                del kwargs['proxies']
+        # Ensure we have a clean set of parameters for initialization
+        safe_params = {"api_key": api_key}
+        
+        # Create a custom session with explicitly empty proxies
+        try:
+            import requests
+            logger.info("Setting up custom HTTP session with empty proxies")
             
-            # Call the original init with cleaned kwargs
-            return original_init(self, *args, **kwargs)
+            # Configure a session with no proxies
+            session = requests.Session()
+            session.proxies = {}
+            
+            # Add this session to the initialization parameters if possible
+            if hasattr(anthropic, 'Client') and hasattr(anthropic.Client, "create_http_client"):
+                logger.info("Adding custom HTTP session to Anthropic client params")
+                safe_params["http_client"] = session
+        except Exception as session_error:
+            logger.warning(f"Could not set up custom HTTP session: {str(session_error)}")
         
-        # Apply the monkey patch
-        anthropic.Anthropic.__init__ = patched_init
-        logger.info("Applied patch to Anthropic client to filter unwanted parameters")
+        # Try to identify the exact client class structure
+        try:
+            # Try to find the Client class if it exists in newer SDK versions
+            if hasattr(anthropic, 'Client'):
+                logger.info("Found anthropic.Client class - patching it")
+                # Patch the Client class init
+                original_client_init = anthropic.Client.__init__
+                
+                def patched_client_init(self, *args, **kwargs):
+                    # Log original kwargs for debugging
+                    logger.info(f"Original Client init params: {list(kwargs.keys())}")
+                    
+                    # Remove problematic parameters
+                    for param in ['proxies']:
+                        if param in kwargs:
+                            logger.info(f"Removing '{param}' parameter from Client initialization")
+                            del kwargs[param]
+                    
+                    # Call original init with clean kwargs
+                    return original_client_init(self, *args, **kwargs)
+                
+                # Apply the patch
+                anthropic.Client.__init__ = patched_client_init
+            
+            # Also patch the Anthropic class for backward compatibility
+            original_anthropic_init = anthropic.Anthropic.__init__
+            
+            def patched_anthropic_init(self, *args, **kwargs):
+                # Log original kwargs for debugging
+                logger.info(f"Original Anthropic init params: {list(kwargs.keys())}")
+                
+                # Remove problematic parameters
+                for param in ['proxies']:
+                    if param in kwargs:
+                        logger.info(f"Removing '{param}' parameter from Anthropic initialization")
+                        del kwargs[param]
+                
+                # Call original init with clean kwargs
+                return original_anthropic_init(self, *args, **kwargs)
+            
+            # Apply the patch
+            anthropic.Anthropic.__init__ = patched_anthropic_init
+            
+            logger.info("Applied patches to Anthropic client classes to filter unwanted parameters")
+            
+        except Exception as patch_error:
+            # If patching fails, log the error but continue with a simple initialization
+            logger.error(f"Error applying patches: {str(patch_error)}")
         
-        # Initialize client with just the API key
-        client = anthropic.Anthropic(api_key=api_key)
+        # Try different initialization approaches in order of preference
+        client = None
+        
+        # Attempt initialization with just the essential parameters
+        try:
+            logger.info("Attempting to initialize with clean parameters")
+            client = anthropic.Anthropic(**safe_params)
+            logger.info("Successfully initialized Anthropic client with clean parameters")
+        except Exception as init_error:
+            logger.error(f"Error in first initialization attempt: {str(init_error)}")
+            
+            # If that fails, try with Client class if available
+            if hasattr(anthropic, 'Client'):
+                try:
+                    logger.info("Attempting to initialize with Client class")
+                    client = anthropic.Client(**safe_params)
+                    logger.info("Successfully initialized Client")
+                except Exception as client_error:
+                    logger.error(f"Error initializing with Client class: {str(client_error)}")
+                    
+                    # Try with http_session parameter naming instead of http_client
+                    try:
+                        logger.info("Attempting with http_session parameter")
+                        modified_params = safe_params.copy()
+                        
+                        # Replace http_client with http_session if it exists
+                        if 'http_client' in modified_params:
+                            modified_params['http_session'] = modified_params.pop('http_client')
+                            
+                        client = anthropic.Client(**modified_params)
+                        logger.info("Successfully initialized Client with http_session")
+                    except Exception as session_error:
+                        logger.error(f"Error initializing with http_session: {str(session_error)}")
+                        
+                        # One last attempt with base_url parameter to bypass proxy issues
+                        try:
+                            logger.info("Attempting direct API URL specification")
+                            final_params = {"api_key": api_key, "base_url": "https://api.anthropic.com"}
+                            client = anthropic.Client(**final_params)
+                            logger.info("Successfully initialized Client with explicit base_url")
+                        except Exception as url_error:
+                            logger.error(f"Error initializing with explicit base_url: {str(url_error)}")
+            
+            # If all attempts fail, we have no choice but to let the normal initialization fail
+            if client is None:
+                raise Exception("Failed to initialize client with any approach")
+        
         logger.info("Anthropic client initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize Anthropic client: {str(e)}")
@@ -118,29 +237,66 @@ def get_putter_info():
         
         # Make the API call with a direct try-except pattern
         try:
-            # Apply similar patching for the messages.create method to filter unwanted parameters
-            original_create = client.messages.create
+            # Check which client type we're using and patch accordingly
+            client_class_name = client.__class__.__name__
+            logger.info(f"Using client of type: {client_class_name}")
             
-            def patched_create(**kwargs):
-                # Filter out any potential problematic parameters
-                safe_kwargs = {k: v for k, v in kwargs.items() if k in [
-                    "model", "max_tokens", "temperature", "messages", "system"
-                ]}
+            # Depending on client type, we need to access messages.create differently
+            if hasattr(client, 'messages') and hasattr(client.messages, 'create'):
+                logger.info("Found messages.create method - applying patch")
+                original_create = client.messages.create
                 
-                logger.info(f"Making API call with safe parameters: {list(safe_kwargs.keys())}")
-                return original_create(**safe_kwargs)
-            
-            # Use patched method for this call
-            message = patched_create(**message_params)
+                def patched_create(**kwargs):
+                    # Log original parameters for debugging
+                    logger.info(f"Original API call parameters: {list(kwargs.keys())}")
+                    
+                    # Filter out any potential problematic parameters
+                    safe_kwargs = {k: v for k, v in kwargs.items() if k in [
+                        "model", "max_tokens", "temperature", "messages", "system"
+                    ]}
+                    
+                    logger.info(f"Making API call with safe parameters: {list(safe_kwargs.keys())}")
+                    return original_create(**safe_kwargs)
+                
+                # Apply the patch
+                client.messages.create = patched_create
+                
+                # Make the API call
+                message = client.messages.create(**message_params)
+            else:
+                # For older client versions or direct completions API
+                logger.warning("Could not find messages.create method, trying alternative approaches")
+                
+                # Try direct client.create call if it exists
+                if hasattr(client, 'create'):
+                    logger.info("Using client.create method")
+                    message = client.create(**message_params)
+                # If all else fails, try direct completion call
+                elif hasattr(client, 'completions') and hasattr(client.completions, 'create'):
+                    logger.info("Using completions.create method")
+                    message = client.completions.create(**message_params)
+                else:
+                    raise Exception("No suitable method found to make API call")
             
             # Extract the text content from the response - handle potential structure changes
             try:
-                response_text = message.content[0].text
+                # Try modern response structure first (messages API)
+                if hasattr(message, 'content') and isinstance(message.content, list):
+                    response_text = message.content[0].text
+                # Try older response structures (completions API)
+                elif hasattr(message, 'completion'):
+                    response_text = message.completion
+                elif hasattr(message, 'text'):
+                    response_text = message.text
+                else:
+                    # Fallback to string representation
+                    response_text = str(message)
+                    
                 logger.info("Successfully extracted response text")
             except (AttributeError, IndexError, TypeError) as e:
                 logger.error(f"Error extracting response text: {str(e)}")
                 # Fallback extraction method
-                response_text = str(message.content)
+                response_text = str(message.content if hasattr(message, 'content') else message)
             
             # Return the response
             return jsonify({"response": response_text})
