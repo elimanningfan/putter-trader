@@ -4,7 +4,6 @@ import anthropic
 from dotenv import load_dotenv
 import logging
 import sys
-import httpx
 from flask_cors import CORS
 
 # Configure logging
@@ -32,32 +31,20 @@ try:
     
     logger.info("Attempting to initialize Anthropic client...")
     
-    # Try different client initialization methods based on potentially available SDK versions
+    # SIMPLIFIED: Try just ONE method with minimal parameters
     try:
-        # First attempt - completely plain with no special parameters
-        logger.info("First attempt - plain initialization")
+        # Only use the absolute minimal parameters required
+        import anthropic
+        logger.info("Imported Anthropic version: " + getattr(anthropic, "__version__", "unknown"))
+        
+        # Super simple initialization with just the API key
         client = anthropic.Anthropic(api_key=api_key)
-        logger.info("Anthropic client initialized successfully using simple initialization")
-    except Exception as e1:
-        logger.warning(f"First attempt failed: {str(e1)}")
-        try:
-            # Second attempt - for older versions
-            logger.info("Second attempt - legacy Client class")
-            client = anthropic.Client(api_key=api_key)
-            logger.info("Anthropic client initialized successfully using legacy Client class")
-        except Exception as e2:
-            logger.warning(f"Second attempt failed: {str(e2)}")
-            try:
-                # Third attempt - using a direct dict for kwargs
-                logger.info("Third attempt - using kwargs dict")
-                kwargs = {"api_key": api_key}
-                client = anthropic.Anthropic(**kwargs)
-                logger.info("Anthropic client initialized successfully using kwargs")
-            except Exception as e3:
-                logger.error(f"All client initialization attempts failed: {str(e3)}")
-                raise Exception(f"Failed to initialize Anthropic client after multiple attempts: {str(e3)}")
-    
-    logger.info("Anthropic client initialized successfully")
+        logger.info("Anthropic client initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Anthropic client: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Exception args: {e.args}")
+        raise Exception(f"Failed to initialize Anthropic client: {str(e)}")
     
 except Exception as e:
     logger.error(f"Error initializing Anthropic client: {str(e)}")
