@@ -25,11 +25,9 @@ app = Flask(__name__)
 try:
     # Only attempt to initialize if we have an API key
     if api_key:
-        # The Anthropic SDK now requires an API version header
+        # Use the simplest possible initialization to avoid proxy issues
         client = anthropic.Anthropic(
-            api_key=api_key,
-            # Adding the required API version parameter
-            default_headers={"anthropic-version": "2023-06-01"}
+            api_key=api_key
         )
         logger.info("Anthropic client initialized successfully")
     else:
