@@ -49,8 +49,20 @@ document.addEventListener('DOMContentLoaded', function() {
             resultContainer.scrollIntoView({ behavior: 'smooth' });
         } catch (error) {
             console.error('Error:', error);
-            errorContainer.textContent = error.message || 'An error occurred while fetching putter information';
+            // Add more detailed error message with any available response data
+            let errorMsg = error.message || 'An error occurred while fetching putter information';
+            
+            // Add debugging info for API initialization errors
+            if (errorMsg.includes('Anthropic client not initialized')) {
+                errorMsg += '<br><br><strong>Debugging Tips:</strong><br>' +
+                            '• Check that your ANTHROPIC_API_KEY environment variable is set<br>' +
+                            '• Verify the API key format (should start with sk-ant...)<br>' +
+                            '• Try restarting the application<br>';
+            }
+            
+            errorContainer.innerHTML = errorMsg;
             errorContainer.classList.remove('d-none');
+            errorContainer.classList.add('alert', 'alert-danger');
         } finally {
             loadingDiv.classList.add('d-none');
             submitBtn.disabled = false;

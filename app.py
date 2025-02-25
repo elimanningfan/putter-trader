@@ -3,28 +3,43 @@ from flask import Flask, render_template, request, jsonify
 import anthropic
 from dotenv import load_dotenv
 import logging
+import sys
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
-
-# Get API key with fallback
+# Validate API key at startup
 api_key = os.getenv("ANTHROPIC_API_KEY")
 if not api_key:
-    logger.error("No Anthropic API key found in environment variables")
+    logger.critical("ERROR: No Anthropic API key found in environment variables. Please set ANTHROPIC_API_KEY.")
+    # Print to stderr for immediate visibility
+    print("ERROR: No Anthropic API key found. Set ANTHROPIC_API_KEY environment variable.", file=sys.stderr)
 
-# Initialize the client in a safer way
+app = Flask(__name__)
+
+# Initialize the client in a safer way with API version header
 try:
-    client = anthropic.Anthropic(api_key=api_key)
-    logger.info("Anthropic client initialized successfully")
+    # Only attempt to initialize if we have an API key
+    if api_key:
+        # The Anthropic SDK now requires an API version header
+        client = anthropic.Anthropic(
+            api_key=api_key,
+            # Adding the required API version parameter
+            default_headers={"anthropic-version": "2023-06-01"}
+        )
+        logger.info("Anthropic client initialized successfully")
+    else:
+        client = None
+        logger.error("Skipping Anthropic client initialization due to missing API key")
 except Exception as e:
     logger.error(f"Failed to initialize Anthropic client: {str(e)}")
     client = None
+    # Print to stderr for immediate visibility
+    print(f"ERROR initializing Anthropic client: {str(e)}", file=sys.stderr)
 
 @app.route('/')
 def home():
