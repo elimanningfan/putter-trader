@@ -31,7 +31,7 @@ def test_anthropic_connection():
         
         # Test with a simple message
         response = client.messages.create(
-            model="claude-3-sonnet-20240229",
+            model="claude-3-7-sonnet-20250219",
             max_tokens=100,
             temperature=0,
             messages=[
