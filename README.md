@@ -34,4 +34,4 @@ A simple web application that allows users to get detailed information about Sco
 
 - Flask (Python web framework)
 - Anthropic API (Claude 3.7 Sonnet)
-- HTML/CSS/JavaScript 
+- HTML/CSS/JavaScript # putter-trader
