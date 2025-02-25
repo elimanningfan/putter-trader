@@ -1,0 +1,200 @@
+body {
+    background-color: #f5f5f5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.card {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background: linear-gradient(to right, #2e7d32, #388e3c);
+    padding: 1.5rem 1rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.btn-success {
+    background-color: #2e7d32;
+    border-color: #2e7d32;
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+}
+
+.btn-success:hover {
+    background-color: #1b5e20;
+    border-color: #1b5e20;
+}
+
+/* Results layout and styling */
+.putter-result {
+    line-height: 1.6;
+    text-align: left;
+}
+
+/* Flat bullet list formatting - NO NESTING */
+.putter-result ul, 
+.putter-result .bullet-list {
+    padding-left: 1.25rem !important;
+    margin-bottom: 1rem !important;
+    list-style-position: outside !important;
+    list-style-type: disc !important;
+}
+
+.putter-result li {
+    margin-bottom: 0.5rem !important;
+    text-align: left !important;
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+    display: list-item !important;
+}
+
+/* Override browser default styles */
+.putter-result ul ul,
+.putter-result ol ul,
+.putter-result ul ol,
+.putter-result ol ol {
+    margin-left: 0 !important;
+    padding-left: 1.25rem !important;
+}
+
+/* Overview section */
+.putter-overview {
+    background-color: #f9f9f9;
+    border-left: 4px solid #2e7d32;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    border-radius: 0 6px 6px 0;
+}
+
+/* Section styling */
+.section {
+    margin-bottom: 2rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e0e0e0;
+    text-align: left;
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+/* Special styling for the market value section */
+.market-value-section {
+    background-color: rgba(46, 125, 50, 0.05);
+    border: 1px solid rgba(46, 125, 50, 0.2);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin: 1.5rem 0 2rem 0;
+    box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);
+    text-align: left;
+}
+
+.market-value-title {
+    color: #2e7d32 !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid #2e7d32;
+    padding-bottom: 0.5rem;
+    margin-top: 0 !important;
+    text-align: left;
+}
+
+.price-range {
+    font-weight: 700;
+    color: #2e7d32;
+    font-size: 1.1em;
+    background-color: rgba(46, 125, 50, 0.1);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* Headings */
+.putter-result h1, 
+.putter-result h2, 
+.putter-result h3, 
+.putter-result h4 {
+    color: #2e7d32;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    text-align: left;
+}
+
+.putter-result h1 {
+    font-size: 1.8rem;
+    border-bottom: 2px solid rgba(46, 125, 50, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+.putter-result h2 {
+    font-size: 1.5rem;
+    margin-top: 1.75rem;
+}
+
+.putter-result h3 {
+    font-size: 1.25rem;
+}
+
+.putter-result h4 {
+    font-size: 1.1rem;
+}
+
+/* Paragraph styling */
+.putter-result p {
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+/* Strong text emphasis */
+.putter-result strong {
+    font-weight: 600;
+    color: #333;
+}
+
+/* Info rows (key-value pairs) */
+.info-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+    padding: 0.25rem 0;
+    text-align: left;
+}
+
+.info-label {
+    font-weight: 600;
+    min-width: 180px;
+    padding-right: 1rem;
+    color: #333;
+}
+
+.info-value {
+    flex: 1;
+    text-align: left;
+}
+
+/* Spinner */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .info-row {
+        flex-direction: column;
+    }
+    
+    .info-label {
+        margin-bottom: 0.25rem;
+    }
+    
+    .market-value-section {
+        padding: 1rem;
+    }
+} 
