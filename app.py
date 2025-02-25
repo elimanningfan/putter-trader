@@ -37,24 +37,26 @@ try:
         import anthropic
         logger.info("Imported Anthropic version: " + getattr(anthropic, "__version__", "unknown"))
         
-        # Ensure we're not passing any unsupported parameters (like 'proxies')
-        # Check the installed version and only pass supported parameters
-        anthropic_version = getattr(anthropic, "__version__", "0.0.0")
+        # MONKEY PATCH the Anthropic client initialization to filter out unwanted parameters
+        # This is a direct approach to deal with middleware injecting parameters
+        original_init = anthropic.Anthropic.__init__
         
-        # Initialize with just the API key to avoid any compatibility issues
-        # This works across all Anthropic SDK versions
-        try:
-            # Explicitly use only the api_key parameter to avoid any injected parameters from middleware
-            client_kwargs = {"api_key": api_key}
-            # Explicitly construct the client with only the api_key parameter
-            client = anthropic.Anthropic(**client_kwargs)
-            logger.info("Anthropic client initialized successfully")
-        except TypeError as te:
-            # If there's a TypeError about unexpected keyword arguments, log and re-raise
-            logger.error(f"TypeError initializing client: {str(te)}")
-            # Just try the most basic initialization possible
-            client = anthropic.Anthropic(api_key=api_key)
-            logger.info("Fallback client initialization successful")
+        def patched_init(self, *args, **kwargs):
+            # Explicitly filter out problematic parameters before passing to original init
+            if 'proxies' in kwargs:
+                logger.info("Removing 'proxies' parameter from Anthropic client initialization")
+                del kwargs['proxies']
+            
+            # Call the original init with cleaned kwargs
+            return original_init(self, *args, **kwargs)
+        
+        # Apply the monkey patch
+        anthropic.Anthropic.__init__ = patched_init
+        logger.info("Applied patch to Anthropic client to filter unwanted parameters")
+        
+        # Initialize client with just the API key
+        client = anthropic.Anthropic(api_key=api_key)
+        logger.info("Anthropic client initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize Anthropic client: {str(e)}")
         logger.error(f"Exception type: {type(e).__name__}")
@@ -116,29 +118,20 @@ def get_putter_info():
         
         # Make the API call with a direct try-except pattern
         try:
-            # Create message parameters with only the known required parameters
-            # to avoid any compatibility issues with different SDK versions
-            message = None
-            try:
-                # First try the standard method
-                message = client.messages.create(**message_params)
-            except TypeError as te:
-                # If we get a TypeError about unexpected arguments
-                logger.warning(f"Encountered TypeError in API call: {str(te)}")
-                # Filter out any problematic parameters that might be causing issues
-                # Keep only the essential parameters that work across different SDK versions
-                essential_params = {
-                    "model": message_params["model"],
-                    "max_tokens": message_params["max_tokens"],
-                    "messages": message_params["messages"]
-                }
-                if "temperature" in message_params:
-                    essential_params["temperature"] = message_params["temperature"]
-                if "system" in message_params:
-                    essential_params["system"] = message_params["system"]
+            # Apply similar patching for the messages.create method to filter unwanted parameters
+            original_create = client.messages.create
+            
+            def patched_create(**kwargs):
+                # Filter out any potential problematic parameters
+                safe_kwargs = {k: v for k, v in kwargs.items() if k in [
+                    "model", "max_tokens", "temperature", "messages", "system"
+                ]}
                 
-                logger.info("Retrying API call with essential parameters only")
-                message = client.messages.create(**essential_params)
+                logger.info(f"Making API call with safe parameters: {list(safe_kwargs.keys())}")
+                return original_create(**safe_kwargs)
+            
+            # Use patched method for this call
+            message = patched_create(**message_params)
             
             # Extract the text content from the response - handle potential structure changes
             try:
